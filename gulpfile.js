@@ -141,6 +141,10 @@ gulp.task('copy', function () {
     'web/media/**/*'
   ]).pipe(gulp.dest('www/media'));
 
+  var locales = gulp.src([
+    'web/_locales/**/*'
+  ]).pipe(gulp.dest('www/_locales'));
+
   var scripts = gulp.src([
     'web/scripts/**/*.js'
   ]).pipe(gulp.dest('www/scripts'));
@@ -162,7 +166,7 @@ gulp.task('copy', function () {
     .pipe($.rename('index.build.html'))
     .pipe(gulp.dest('www/'));
 
-  return merge(media, web, scripts, bower, elements, polybuilt, swBootstrap, swToolbox)
+  return merge(media, locales, web, scripts, bower, elements, polybuilt, swBootstrap, swToolbox)
     .pipe($.size({ title: 'copy' }));
 });
 
@@ -200,9 +204,25 @@ gulp.task('html', function () {
 gulp.task('polybuild', function () {
   var DEST_DIR = 'www';
 
-  return gulp.src('www/index.html')
-    .pipe(polybuild())
-    .pipe(gulp.dest(DEST_DIR))
+  var index = gulp.src('www/index.html')
+    .pipe(polybuild({suffix: ''}))
+    .pipe(gulp.dest(DEST_DIR));
+
+  var elements = gulp.src('www/elements/elements.html')
+    .pipe(polybuild({suffix: ''}))
+    .pipe(gulp.dest(DEST_DIR + '/elements'));
+
+  var bower_components = gulp.src([
+        'www/bower_components/iron-*/iron-*.html',
+        'www/bower_components/paper-*/paper-*.html',
+        'www/bower_components/platinum-*/*.html',
+        'www/bower_components/polymer/*.html',
+        '!www/bower_components/**/{demo,test}/**'
+    ])
+    .pipe(polybuild({suffix: ''}))
+    .pipe(gulp.dest(DEST_DIR + '/bower_components'));
+
+    return merge(index, elements, bower_components)
     .pipe($.size({ title: 'polybuild' }));
 });
 

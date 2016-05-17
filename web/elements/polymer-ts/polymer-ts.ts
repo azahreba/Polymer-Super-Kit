@@ -4,7 +4,7 @@
 //
 // Antonino Porcino, nino.porcino@gmail.com
 
-module polymer {   
+namespace polymer {
 
    // this is the original Polymer.Base
    export declare class PolymerBase /* extends HTMLElement */ {   // commented as not yet supported by TypeScript
