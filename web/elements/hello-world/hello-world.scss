@@ -3,4 +3,9 @@
 :host {
   background-color: $primary-background-color;
   color: $primary-foreground-color;
+
+  .hw-300 {
+    width: 300px;
+    height: 300px;
+  }
 }

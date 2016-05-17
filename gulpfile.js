@@ -202,6 +202,8 @@ gulp.task('html', function () {
 
 // Vulcanize+Crisper+Polyclean imports
 gulp.task('polybuild', function () {
+  //TODO: ignore already built bower_components to accelerate build process
+
   var DEST_DIR = 'www';
 
   var index = gulp.src('www/index.html')
