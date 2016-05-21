@@ -51,6 +51,8 @@ var AUTOPREFIXER_BROWSERS = [
   'bb >= 10'
 ];
 
+var DEST_DIR = 'extension';
+
 var styleTask = function (stylesPath, srcs) {
   return gulp.src(srcs.map(function (src) {
     return path.join('.tmp', stylesPath, src);
@@ -64,9 +66,9 @@ var styleTask = function (stylesPath, srcs) {
 };
 
 gulp.task('sass', function () {
-  return gulp.src('web/**/*.scss')
+  return gulp.src('app/**/*.scss')
     .pipe(sass({
-      'includePaths': ['./web/styles/']
+      'includePaths': ['./app/styles/']
     }).on('error', sass.logError))
     .pipe(gulp.dest('.tmp'))
     .pipe(connect.reload());
@@ -84,9 +86,9 @@ gulp.task('elements', function () {
 // Lint JavaScript
 gulp.task('jshint', function () {
   return gulp.src([
-      'web/scripts/**/*.js',
-      'web/elements/**/*.js',
-      'web/elements/**/*.html'
+      'app/scripts/**/*.js',
+      'app/elements/**/*.js',
+      'app/elements/**/*.html'
   ])
     .pipe($.jshint.extract()) // Extract JS from .html files
     .pipe($.jshint())
@@ -95,7 +97,7 @@ gulp.task('jshint', function () {
 
 // Optimize Images
 gulp.task('images', function () {
-  return gulp.src('web/images/**/*')
+  return gulp.src('app/images/**/*')
     .pipe($.cache($.imagemin({
       progressive: true,
       interlaced: true
@@ -106,9 +108,9 @@ gulp.task('images', function () {
 
 gulp.task('typescript', function () {
   var tsResult = gulp.src([
-    'web/scripts/main.ts',
-    'web/elements/**/*.ts',
-    'web/scripts/**/*.ts'
+    'app/scripts/main.ts',
+    'app/elements/**/*.ts',
+    'app/scripts/**/*.ts'
   ])
   .pipe(ts({
     target: 'es5',
@@ -125,63 +127,69 @@ gulp.task('typescript', function () {
       .pipe(connect.reload());
 });
 
-// Copy All Files At The Root Level (web)
+// Copy All Files At The Root Level (app)
 gulp.task('copy', function () {
-  var web = gulp.src([
+  var app = gulp.src([
     '.tmp/**/*.js',
     '.tmp/**/*.css',
-    'web/*',
-    '!web/test',
-    '!web/precache.json'
+    'app/*',
+    '!app/test',
+    '!app/precache.json'
   ], {
     dot: true
   }).pipe(gulp.dest('www'));
 
   var media = gulp.src([
-    'web/media/**/*'
+    'app/media/**/*'
   ]).pipe(gulp.dest('www/media'));
 
   var locales = gulp.src([
-    'web/_locales/**/*'
+    'app/_locales/**/*'
   ]).pipe(gulp.dest('www/_locales'));
 
   var scripts = gulp.src([
-    'web/scripts/**/*.js'
+    'app/scripts/**/*.js'
   ]).pipe(gulp.dest('www/scripts'));
 
   var bower = gulp.src([
-    'web/bower_components/**/*'
+    'app/bower_components/**/*',
+    '!app/bower_components/**/{demo,test}/*',
+    '!app/bower_components/**/{demo,test}'
   ]).pipe(gulp.dest('www/bower_components'));
 
-  var elements = gulp.src(['web/elements/**/*.html'])
+  var elements = gulp.src(['app/elements/**/*.html'])
     .pipe(gulp.dest('www/elements'));
 
-  var swBootstrap = gulp.src(['web/bower_components/platinum-sw/bootstrap/*.js'])
+  var swBootstrap = gulp.src(['app/bower_components/platinum-sw/bootstrap/*.js'])
     .pipe(gulp.dest('www/elements/bootstrap'));
 
-  var swToolbox = gulp.src(['web/bower_components/sw-toolbox/*.js'])
+  var swToolbox = gulp.src(['app/bower_components/sw-toolbox/*.js'])
     .pipe(gulp.dest('www/sw-toolbox'));
 
-  var polybuilt = gulp.src(['web/index.html'])
-    .pipe($.rename('index.build.html'))
+  var polybuilt = gulp.src(['app/index.html'])
+    //.pipe($.rename('index.build.html'))
     .pipe(gulp.dest('www/'));
 
-  return merge(media, locales, web, scripts, bower, elements, polybuilt, swBootstrap, swToolbox)
+  return merge(media, locales, app, scripts, bower, elements, polybuilt, swBootstrap, swToolbox)
     .pipe($.size({ title: 'copy' }));
 });
 
-// Copy Web Fonts To www
+// Copy app Fonts To www
 gulp.task('fonts', function () {
-  return gulp.src(['web/fonts/**'])
+  return gulp.src(['app/fonts/**'])
     .pipe(gulp.dest('www/fonts'))
     .pipe($.size({ title: 'fonts' }));
 });
 
 // Scan Your HTML For Assets & Optimize Them
 gulp.task('html', function () {
-  var assets = $.useref.assets({ searchPath: ['.tmp', 'web', 'www'] });
+  var assets = $.useref.assets({ searchPath: ['.tmp', 'app', 'www'] });
 
-  return gulp.src(['web/**/*.html', '!web/{elements,test}/**/*.html'])
+  return gulp.src([
+      'app/**/*.html',
+      '!app/bower_components/**',
+      '!app/{elements,test}/**/*.html'
+    ])
     // Concatenate And Minify JavaScript
     .pipe($.if('*.js', $.uglify({ preserveComments: 'some' })))
     // Concatenate And Minify Styles
@@ -201,31 +209,100 @@ gulp.task('html', function () {
 });
 
 // Vulcanize+Crisper+Polyclean imports
-gulp.task('polybuild', function () {
-  //TODO: ignore already built bower_components to accelerate build process
-
-  var DEST_DIR = 'www';
-
-  var index = gulp.src('www/index.html')
+gulp.task('polybuild-polymer', function () {
+  return gulp.src('www/bower_components/polymer/*.html')
     .pipe(polybuild({suffix: ''}))
-    .pipe(gulp.dest(DEST_DIR));
+    .pipe(gulp.dest(DEST_DIR + '/bower_components/polymer'))
+    .pipe($.size({ title: 'polybuild-polymer' }));
+});
 
-  var elements = gulp.src('www/elements/elements.html')
-    .pipe(polybuild({suffix: ''}))
-    .pipe(gulp.dest(DEST_DIR + '/elements'));
-
-  var bower_components = gulp.src([
-        'www/bower_components/iron-*/iron-*.html',
-        'www/bower_components/paper-*/paper-*.html',
-        'www/bower_components/platinum-*/*.html',
-        'www/bower_components/polymer/*.html',
-        '!www/bower_components/**/{demo,test}/**'
+gulp.task('polybuild-iron', function () {
+  return gulp.src([
+      'www/bower_components/iron-*/iron-*.html',
+      '!www/bower_components/**/{demo,test}/**'
     ])
     .pipe(polybuild({suffix: ''}))
-    .pipe(gulp.dest(DEST_DIR + '/bower_components'));
+    .pipe(gulp.dest(DEST_DIR + '/bower_components'))
+    .pipe($.size({ title: 'polybuild-iron' }));
+});
 
-    return merge(index, elements, bower_components)
-    .pipe($.size({ title: 'polybuild' }));
+gulp.task('polybuild-paper', function () {
+  return gulp.src([
+      'www/bower_components/paper-e*/paper-*.html',
+      '!www/bower_components/**/{demo,test}/**'
+    ])
+    .pipe(polybuild({suffix: ''}))
+    .pipe(gulp.dest(DEST_DIR + '/bower_components'))
+    .pipe($.size({ title: 'polybuild-paper' }));
+});
+
+gulp.task('polybuild-platinum', function () {
+  return gulp.src([
+      'www/bower_components/platinum-*/*.html',
+      '!www/bower_components/**/{demo,test}/**'
+    ])
+    .pipe(polybuild({suffix: ''}))
+    .pipe(gulp.dest(DEST_DIR + '/bower_components'))
+    .pipe($.size({ title: 'polybuild-platinum' }));
+});
+
+gulp.task('polybuild-prism', function () {
+  return gulp.src([
+      'www/bower_components/prism-*/*.html',
+      '!www/bower_components/**/{demo,test}/**'
+    ])
+    .pipe(polybuild({suffix: ''}))
+    .pipe(gulp.dest(DEST_DIR + '/bower_components'))
+    .pipe($.size({ title: 'polybuild-prism' }));
+});
+
+gulp.task('polybuild-marked', function () {
+  return gulp.src([
+      'www/bower_components/marked-*/*.html',
+      '!www/bower_components/**/{demo,test}/**'
+    ])
+    .pipe(polybuild({suffix: ''}))
+    .pipe(gulp.dest(DEST_DIR + '/bower_components'))
+    .pipe($.size({ title: 'polybuild-marked' }));
+});
+
+gulp.task('polybuild-neon', function () {
+  return gulp.src([
+      'www/bower_components/neon-*/*.html',
+      '!www/bower_components/**/{demo,test}/**'
+    ])
+    .pipe(polybuild({suffix: ''}))
+    .pipe(gulp.dest(DEST_DIR + '/bower_components'))
+    .pipe($.size({ title: 'polybuild-neon' }));
+});
+
+gulp.task('polybuild-index', function () {
+  return gulp.src('www/index.html')
+    .pipe(polybuild({suffix: ''}))
+    .pipe(gulp.dest(DEST_DIR))
+    .pipe($.size({ title: 'polybuild-index' }));
+});
+
+gulp.task('polybuild-elements', function () {
+  return gulp.src('www/elements/elements.html')
+    .pipe(polybuild({suffix: ''}))
+    .pipe(gulp.dest(DEST_DIR + '/elements'))
+    .pipe($.size({ title: 'polybuild-elements' }));
+});
+
+gulp.task('polybuild', function () {
+  runSequence(
+    'polybuild-polymer',
+    'polybuild-iron',
+    'polybuild-marked',
+    'polybuild-neon',
+    //'polybuild-paper',
+    'polybuild-platinum',
+    'polybuild-prism',
+
+    'polybuild-index',
+    'polybuild-elements'
+    );
 });
 
 // Generate a list of files that should be precached when serving from 'www'.
@@ -239,7 +316,7 @@ gulp.task('precache', function (callback) {
       callback(error);
     } else {
       files.push('index.html', './',
-          'bower_components/webcomponentsjs/webcomponents-lite.min.js');
+          'bower_components/appcomponentsjs/appcomponents-lite.min.js');
       var filePath = path.join(dir, 'precache.json');
       fs.writeFile(filePath, JSON.stringify(files), callback);
     }
@@ -251,21 +328,24 @@ gulp.task('clean', del.bind(null, ['.tmp', 'www']));
 
 // Watch Files For Changes & Reload
 gulp.task('serve',
-    ['typescript', 'sass'],
+    ['html', 'typescript', 'sass'],
     function () {
-  connect.server({
-    root: ['.tmp/', 'web'],
-    port: 8000,
-    livereload: true
-  });
+  //connect.server({
+  //  root: ['.tmp/', 'app'],
+  //  port: 8000,
+  //  livereload: true
+  //});
   
   gulp.watch([
-    'web/elements/**/*.ts',
-    'web/scripts/**/*.ts'
+    'app/elements/**/*.html'],
+    ['html']);
+  gulp.watch([
+    'app/elements/**/*.ts',
+    'app/scripts/**/*.ts'
   ], ['typescript']);
   gulp.watch([
-    'web/elements/**/*.scss',
-    'web/styles/**/*.scss'
+    'app/elements/**/*.scss',
+    'app/styles/**/*.scss'
   ], ['sass']);
 });
 
@@ -282,9 +362,9 @@ gulp.task('default', ['clean'], function (cb) {
   // Note: add , 'precache' , after 'polybuild', if your are going to use Service Worker
 });
 
-// Load tasks for web-component-tester
+// Load tasks for app-component-tester
 // Adds tasks for `gulp test:local` and `gulp test:remote`
-require('web-component-tester').gulp.init(gulp);
+require('app-component-tester').gulp.init(gulp);
 
 // Load custom tasks from the `tasks` directory
 try { require('require-dir')('tasks'); } catch (err) { }

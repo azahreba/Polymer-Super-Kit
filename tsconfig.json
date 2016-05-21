@@ -13,7 +13,7 @@
         "node_modules"
     ],
     "filesGlob": [
-        "./web/**/*.ts",
+        "./app/**/*.ts",
         "!./node_modules/**/*.ts"
     ]
 }
